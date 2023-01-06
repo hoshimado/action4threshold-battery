@@ -2,7 +2,9 @@
 ' ノートPCのバッテリ残量（100-0）が閾値以下の時、作業継続を問うダイアログボックス
 ' を表示し、応答が無ければスリープ状態へ移行する。
 '
-' usage: cscript /Nologo message-sleep-battery.vbs
+' usage: 
+'   cscript /Nologo message-sleep-battery.vbs
+'   C:\windows\system32\cscript.exe
 '-----------------------------------------------------------------
 
 Const THRESHOLD_BATTERY_CHARGE_REMAINING = 80 '[100-0]
@@ -45,17 +47,11 @@ End Function
 Dim result
 If EstimatedChargeRemaining =< THRESHOLD_BATTERY_CHARGE_REMAINING Then
     result = ConfirmPopup4ContinueWorking(WAIT_FOR_DIALOG_RESPONSE_SEC, EstimatedRunTime, EstimatedChargeRemaining)
-    'FixMe: vbYesでなければ、スリープ処理をするSubを呼び出す
-Else
-    'FixMe: デバッグ終えたら、以下は削除する
-    MsgBox("(デバッグ用)バッテリーは十分にあります")
+    If result <> vbYes Then
+        CreateObject("WScript.Shell").Run "rundll32 powrprof.dll, SetSuspendState"
+        ' CreateObject("WScript.Shell").Run "rundll32 powrprof.dll, SetSuspendState Hibernate"
+    End If
 End If
 
 
-Select Case result
-    Case vbYes
-        MsgBox("「はい」")
-    Case Else
-        MsgBox("「はい」以外")
-End Select
 
