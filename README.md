@@ -1,7 +1,7 @@
 # action4threshold-battery
 
 * タイトル
-    * PowerShellでバッテリ残量を取得して、一定未満で且つユーザー応答が無ければOSをスリープ状態へ移行する
+    * PowerShellでバッテリ残量を取得して、閾値未満で且つユーザー応答が無ければOSをスリープ状態へ移行する
 
 # 概要
 
@@ -14,7 +14,7 @@
 * タスクスケジューラ
 * PowerShell
 
-実現だけすればよい、場合はスクリプトの解説を飛ばして「タスクスケジューラへの設定方法」の節を参照ください。
+実現だけすればよい場合は、前半のスクリプトの解説を飛ばして、後半の「タスクスケジューラへの設定方法」の節を参照ください。
 
 ## 検証環境
 
@@ -26,7 +26,7 @@
 次のようにして実現します。
 
 1. タスクスケジューラで定期的に、監視用のPowerShellスクリプトを起動
-2. PowerShellスクリプトでバッテリ残量を取得し、閾値以下なら「作業を継続するか？」のダイアログを表示
+2. PowerShellスクリプトでバッテリ残量を取得し（監視し）、閾値以下なら「作業を継続するか？」のダイアログを表示
 3. ダイアログは一定時間で自動クローズする設定とし、応答なしだった場合は「寝落ちしている」と判断してOSをスリープ状態へ移行
 
 ## 監視用スクリプトの作成
@@ -41,7 +41,7 @@ Get-CimInstance -ClassName Win32_Battery | Select-Object -Property DeviceID, Est
   # 残バッテリ量(100-0％) 
   $EstimatedChargeRemaining = $_.EstimatedChargeRemaining
 
-  # 残り使用時間(分)
+  # 残り使用可能時間(分)
   $EstimatedRunTime = $_.EstimatedRunTime
 }
 
@@ -64,20 +64,44 @@ OSをスリープ状態へ移行するには、.Net FrameworkのSetSuspendState�
 Add-Type -Assembly System.Windows.Forms;[System.Windows.Forms.Application]::SetSuspendState(‘Suspend’, $false, $false);
 ```
 
-以上の内容を用いてスクリプトを作成すると、
-本リポジトリの [message-sleep-battery.ps1](./message-sleep-battery.ps1) のようになります。
+以上の内容を用いて作成した、監視用のPowerShellスクリプトの
+サンプルは [message-sleep-battery.ps1](./message-sleep-battery.ps1) のようになります。
+以降は、こちらのスクリプトを用いるものとして説明します。
 
 
 ## タスクスケジューラへの設定方法
 
 タスクスケジューラを起動して、次のようにタスクを設定します。
+なお、手順中のスクリプトファイルは、任意の場所に格納した前提とします。
 
 1. 「タスクの作成」を選択
 2. タブ「全般」の「名前」に任意（例：message-battery-sleep等）の名称を入力
     * 他の項目はデフォルトのまま
-3. タブ「トリガー」で
+    * ![img1-common.png](./screenshots/img1-common.png)
+3. タブ「トリガー」で「新規」ボタンを押します
+4. 「新しいトリガー」ダイアログで「繰り返し間隔：30分間」と「継続時間：無期限」を設定して「OK」ボタンを押します
+    * ![img2-trigger.png](./screenshots/img2-trigger.png)
+5. タブ「操作」で「新規」ボタンを押します
+6. 「プログラム／スクリプト」に、PowerShellスクリプト、、、を起動するためのvbsスクリプトのパスを指定します
+    * 直接PowerShell.exeを用いてスクリプトを実行しようとすると、「`-WindowStyle Hidden`」を指定しても、「スクリプトをウィンドウ非表示で起動する、ためのPowerShellウィンドウ」が起動してしまうため、代わりにvbsを経由することで、コマンドのウィンドウが表示されることを防ぎます
+    * vbsスクリプトは [message-sleep-battery-wrapper.vbs](./message-sleep-battery-wrapper.vbs) のようにします
+```
+Set objWshShell = WScript.CreateObject("Wscript.Shell")
+objWshShell.run "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -WindowStyle Hidden -ExecutionPolicy RemoteSigned -Command " & Wscript.Arguments(0), vbHide
+```
+7. 「引数の追加（オプション）」に、先に示した監視用のPowerShellスクリプト「[message-sleep-battery.ps1](./message-sleep-battery.ps1) 」へのパスを入力します
+    * ![img3-command.png](./screenshots/img3-command.png)
+8. タブ「条件」で「コンピューターをAC電源で試用している場合のみタスクを開始する」のチェックを外します
+    * ![img4-conditions.png](./screenshots/img4-conditions.png)
+9. 「タスクの作成」ダイアログの右下にある「OK」ボタンを押してタスクを保存します
 
-（以下、作成中）
+タスクの定期実行が設定されました。
+
+動作確認は、作成したタスクを選んで「実行」を押すことできます（スクリプト中のスクリプト中の「 `Set-Variable -Name THRESHOLD_BATTERY_CHARGE_REMAINING -Value 30 -Option Constant` 」に指定したバッテリー残量未満でない場合は、何も表示されません）。
+
+以上で、設定は完了です。
+
+30分おきに監視用のスクリプトが動作し、バッテリーの残量が閾値未満の場合（この例であれば「30％」未満の場合）に、利用者が寝落ちしていないか？を確認するダイアログが表示され、応答が無ければOSをスリープ状態へ移行します。
 
 
 

@@ -21,10 +21,16 @@
 # BOMを付けてUTF-8保存 for 日本語
 
 
+# 「作業を続ける？（寝落ちしてない？）」の確認ダイアログを出し始めるバッテリー残量の閾値
+Set-Variable -Name THRESHOLD_BATTERY_CHARGE_REMAINING -Value 30 -Option Constant
 
-Set-Variable -Name THRESHOLD_BATTERY_CHARGE_REMAINING -Value 50 -Option Constant
+# （未実装）繰り返し確認ダイアログを出す場合の、バッテリー残量の間隔
 # Set-Variable -Name INTERVAL_OF_BATTERY_CHARGE_VALUE -Value 10 -Option Constant
+
+# 確認ダイアログで待機する秒数（この秒数を超えて応答が無ければ「寝落ちしている」と判断）
 Set-Variable -Name WAIT_FOR_DIALOG_RESPONSE_SEC -Value 180 -Option Constant
+
+# スクリプトのタイトル（ダイアログのダイアログ）
 Set-Variable -Name TITLE_TEXT -Value "寝落ち時スリープ移行支援Ver.0.01" -Option Constant
 
 
@@ -69,6 +75,7 @@ function Confirm-Popup4ContinueWorking {
   $msgText = "バッテリー残り時間は" + $EstimatedRunTime + "分です`n作業を継続しますか？`n`n※一定時間内に「はい」が押されない場合は、スリープ状態へ移行します。"
 
   Return $wsobj.popup($msgText, $nSecondsToWait, $titleText, "4")
+  # https://www.tekizai.net/entry/powershell_messagebox_1
 }
 
 
