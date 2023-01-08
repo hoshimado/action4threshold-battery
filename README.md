@@ -165,6 +165,13 @@ PowerShell（だけでなくvbsも）は、今回に初めて書いたので、�
 などの指摘があれば、コメントいただけると助かります。
 
 
+# 本リポジトリ内のファイルの説明
 
+* [message-sleep-battery.ps1](./message-sleep-battery.ps1)
+    * 監視用のPowerShellスクリプト
+* [message-sleep-battery-wrapper.vbs](./message-sleep-battery-wrapper.vbs)
+    * タスクスケジューラからの起動時にウィンドウ非表示にするためのラッパーVBScriptファイル
+* [archive/message-sleep-battery.vbs](./archive/message-sleep-battery.vbs)
+    * VBScriptでの実装例（α版）
 
 
