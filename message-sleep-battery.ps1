@@ -5,6 +5,9 @@
 # usage: 
 #   powershell   message-sleep-battery.ps1
 #
+# Appendix:
+#   Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+#
 # タスクスケジューラ利用時:
 #   プログラム／スクリプト:
 #     message-sleep-battery-wrapper.vbsへのフルパスを指定
@@ -78,14 +81,31 @@ function Confirm-Popup4ContinueWorking {
   # https://www.tekizai.net/entry/powershell_messagebox_1
 }
 
+function output-ActionsLog {
+  param (
+    $EstimatedChargeRemaining, $ActionsText
+  )
+
+  # FixMe: 小数点以下が不要。JSTとUTCで不一致
+  $NowEpochTime = Get-Date -UFormat "%s"
+  $LogText = [string]$NowEpochTime + "," + [string]$EstimatedChargeRemaining + "," + [string]$ActionsText
+
+  Write-Output $LogText | Out-File -Append ".\log-test.log"
+}
 
 If($EstimatedChargeRemaining -lt $THRESHOLD_BATTERY_CHARGE_REMAINING){
   $result = Confirm-Popup4ContinueWorking ($TITLE_TEXT) ($WAIT_FOR_DIALOG_RESPONSE_SEC) ($EstimatedRunTime) ($EstimatedChargeRemaining)
 
   If($result -ne "6"){
+    output-ActionsLog ($EstimatedChargeRemaining) ("Confirm-Timeout-or-No") 
+
     Add-Type -Assembly System.Windows.Forms;[System.Windows.Forms.Application]::SetSuspendState(‘Suspend’, $false, $false);
     # https://www.fenet.jp/infla/column/technology/powershell%E3%81%AEsleep%E3%81%A8%E3%81%AF%EF%BC%9Ftimeout%E3%81%A8%E3%81%84%E3%81%86start-sleep%E3%81%AB%E4%BC%BC%E3%81%9F%E3%82%B3%E3%83%9E%E3%83%B3%E3%83%89%E3%82%82%E7%B4%B9%E4%BB%8B%EF%BC%81/
+  }else{
+    output-ActionsLog ($EstimatedChargeRemaining) ("Confirm-Continue-Yes") 
   }
+}else{
+  output-ActionsLog ($EstimatedChargeRemaining) ("Confirm-Skip") 
 }
 
 
