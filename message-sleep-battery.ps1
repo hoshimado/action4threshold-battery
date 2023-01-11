@@ -87,10 +87,14 @@ function output-ActionsLog {
   )
 
   # FixMe: 小数点以下が不要。JSTとUTCで不一致
+  # FixMe: ログファイル名の扱い。
   $NowEpochTime = Get-Date -UFormat "%s"
   $LogText = [string]$NowEpochTime + "," + [string]$EstimatedChargeRemaining + "," + [string]$ActionsText
+  $OutputLogPath = $PSScriptRoot + "\log-test.log"
 
-  Write-Output $LogText | Out-File -Append ".\log-test.log"
+  # ファイルパスに「[]」（角括弧・ブラケット）を含む場合を考慮して
+  # 与えらえたパスをリテラル文字として扱うようオプションを付けておく。
+  Write-Output $LogText | Out-File -Append -LiteralPath $OutputLogPath
 }
 
 If($EstimatedChargeRemaining -lt $THRESHOLD_BATTERY_CHARGE_REMAINING){
