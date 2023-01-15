@@ -5,6 +5,9 @@
 # usage: 
 #   powershell   message-sleep-battery.ps1
 #
+# Appendix:
+#   Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+#
 # タスクスケジューラ利用時:
 #   プログラム／スクリプト:
 #     message-sleep-battery-wrapper.vbsへのフルパスを指定
@@ -32,6 +35,15 @@ Set-Variable -Name WAIT_FOR_DIALOG_RESPONSE_SEC -Value 180 -Option Constant
 
 # スクリプトのタイトル（ダイアログのダイアログ）
 Set-Variable -Name TITLE_TEXT -Value "寝落ち時スリープ移行支援Ver.0.01" -Option Constant
+
+# 出力するログファイル名
+Set-Variable -Name LOGFILE_NAME -Value "\log-test.log" -Option Constant
+
+# ログファイルに記載するアクション種別
+Set-Variable -Name ACT_COFIRM_SKIP  -Value "Confirm-Skip" -Option Constant
+Set-Variable -Name ACT_CONTINUE_YES -Value "Continue-Yes" -Option Constant
+Set-Variable -Name ACT_TIMEOUT      -Value "Timeout" -Option Constant
+
 
 
 
@@ -66,6 +78,7 @@ Get-CimInstance -ClassName Win32_Battery | Select-Object -Property DeviceID, Est
 
 
 
+
 function Confirm-Popup4ContinueWorking {
   param (
     $titleText, $nSecondsToWait, $EstimatedRunTime, $EstimatedChargeRemaining
@@ -76,16 +89,44 @@ function Confirm-Popup4ContinueWorking {
 
   Return $wsobj.popup($msgText, $nSecondsToWait, $titleText, "4")
   # https://www.tekizai.net/entry/powershell_messagebox_1
+  # vbYesNo = 4
 }
+Set-Variable -Name vbYes -Value 6 -Option Constant
 
+function output-ActionsLog {
+  param (
+    $EstimatedChargeRemaining, $ActionsText
+  )
+
+  # 「$NowEpochTime = Get-Date -UFormat "%s"」だとUTCで取得される且つ、
+  # 小数点を含む（ナノ秒ベースだから？）ので、.NetのDateTimeOffsetを利用する方式とする
+  # ref, https://qiita.com/SAITO_Keita/items/95ca9f536328fa58a912
+  #      https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/get-date?view=powershell-7.2#notes
+  $TimeTextNow = Get-Date -Format "yyyy/MM/dd HH:mm"
+  $DateTimeNow = Get-Date
+  $NowEpochTimeJst = ([datetimeoffset]$DateTimeNow).ToUnixTimeSeconds()
+  
+  $LogText = [string]$NowEpochTimeJst + "," + $TimeTextNow + "," + [string]$EstimatedChargeRemaining + "," + [string]$ActionsText
+  $OutputLogPath = $PSScriptRoot + $LOGFILE_NAME
+
+  # ファイルパスに「[]」（角括弧・ブラケット）を含む場合を考慮して
+  # 与えらえたパスをリテラル文字として扱うようオプションを付けておく。
+  Write-Output $LogText | Out-File -Append -LiteralPath $OutputLogPath
+}
 
 If($EstimatedChargeRemaining -lt $THRESHOLD_BATTERY_CHARGE_REMAINING){
   $result = Confirm-Popup4ContinueWorking ($TITLE_TEXT) ($WAIT_FOR_DIALOG_RESPONSE_SEC) ($EstimatedRunTime) ($EstimatedChargeRemaining)
 
-  If($result -ne "6"){
+  If($result -ne $vbYes){
+    output-ActionsLog ($EstimatedChargeRemaining) ($ACT_TIMEOUT) 
+
     Add-Type -Assembly System.Windows.Forms;[System.Windows.Forms.Application]::SetSuspendState(‘Suspend’, $false, $false);
     # https://www.fenet.jp/infla/column/technology/powershell%E3%81%AEsleep%E3%81%A8%E3%81%AF%EF%BC%9Ftimeout%E3%81%A8%E3%81%84%E3%81%86start-sleep%E3%81%AB%E4%BC%BC%E3%81%9F%E3%82%B3%E3%83%9E%E3%83%B3%E3%83%89%E3%82%82%E7%B4%B9%E4%BB%8B%EF%BC%81/
+  }else{
+    output-ActionsLog ($EstimatedChargeRemaining) ($ACT_CONTINUE_YES) 
   }
+}else{
+  output-ActionsLog ($EstimatedChargeRemaining) ($ACT_COFIRM_SKIP) 
 }
 
 

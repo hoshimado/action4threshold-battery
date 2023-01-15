@@ -1,3 +1,7 @@
+### Log ###
+*.log
+
+
 # Created by https://www.toptal.com/developers/gitignore/api/batch,windows
 # Edit at https://www.toptal.com/developers/gitignore?templates=batch,windows
 
