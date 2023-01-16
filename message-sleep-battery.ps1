@@ -31,7 +31,9 @@ Set-Variable -Name THRESHOLD_BATTERY_CHARGE_REMAINING -Value 30 -Option Constant
 # Set-Variable -Name INTERVAL_OF_BATTERY_CHARGE_VALUE -Value 10 -Option Constant
 
 # 確認ダイアログで待機する秒数（この秒数を超えて応答が無ければ「寝落ちしている」と判断）
-Set-Variable -Name WAIT_FOR_DIALOG_RESPONSE_SEC -Value 180 -Option Constant
+# と、通知への気づきの観点で、繰返し表示する回数。実際は「秒数×回数」が待機秒数、となる。
+Set-Variable -Name WAIT_FOR_DIALOG_RESPONSE_SEC -Value 90 -Option Constant
+Set-Variable -Name NUMBER_OF_REPEAT_DIALOG      -Value  3 -Option Constant
 
 # スクリプトのタイトル（ダイアログのダイアログ）
 Set-Variable -Name TITLE_TEXT -Value "寝落ち時スリープ移行支援Ver.0.01" -Option Constant
@@ -79,6 +81,8 @@ Get-CimInstance -ClassName Win32_Battery | Select-Object -Property DeviceID, Est
 
 
 
+Set-Variable -Name vbYes         -Value 6 -Option Constant
+Set-Variable -Name POPUP_TIMEOUT -Value -1 -Option Constant
 function Confirm-Popup4ContinueWorking {
   param (
     $titleText, $nSecondsToWait, $EstimatedRunTime, $EstimatedChargeRemaining
@@ -87,11 +91,17 @@ function Confirm-Popup4ContinueWorking {
   $wsobj = new-object -comobject wscript.shell
   $msgText = "バッテリー残り時間は" + $EstimatedRunTime + "分です`n作業を継続しますか？`n`n※一定時間内に「はい」が押されない場合は、スリープ状態へ移行します。"
 
-  Return $wsobj.popup($msgText, $nSecondsToWait, $titleText, "4")
-  # https://www.tekizai.net/entry/powershell_messagebox_1
-  # vbYesNo = 4
+  $i = $NUMBER_OF_REPEAT_DIALOG -1
+  do {
+    # https://www.tekizai.net/entry/powershell_messagebox_1
+    # vbYesNo = 4
+    $result = $wsobj.popup($msgText, $nSecondsToWait, $titleText, "4")
+
+    $i--
+  } while (($i -ge 0) -and ($result -eq $POPUP_TIMEOUT))
+  
+  Return $result
 }
-Set-Variable -Name vbYes -Value 6 -Option Constant
 
 function output-ActionsLog {
   param (
